@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoGrowl Image-to-Email Tool</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #f4f6f9;
+      color: #111827;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .page {
+      width: min(1100px, calc(100% - 32px));
+      margin: 40px auto;
+    }
+
+    .header {
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+    }
+
+    .header p {
+      margin: 0;
+      color: #5f6878;
+    }
+
+    .card {
+      margin-bottom: 20px;
+      padding: 24px;
+      background: #fff;
+      border: 1px solid #dce1e8;
+      border-radius: 14px;
+      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.05);
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      font-size: 21px;
+    }
+
+    .upload-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+
+    button,
+    .file-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 0 22px;
+      border: 0;
+      border-radius: 10px;
+      background: #111827;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover,
+    .file-button:hover {
+      opacity: 0.88;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .secondary {
+      background: #e9edf3;
+      color: #111827;
+    }
+
+    .danger {
+      background: #b42318;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    input[type="text"],
+    input[type="url"],
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #cbd2dc;
+      border-radius: 8px;
+      background: #fff;
+      color: #111827;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 340px;
+      resize: vertical;
+      font-family: Consolas, Monaco, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .status {
+      color: #596273;
+      font-size: 14px;
+    }
+
+    .status.success {
+      color: #067647;
+    }
+
+    .status.error {
+      color: #b42318;
+    }
+
+    .instructions {
+      margin: 0 0 16px;
+      color: #596273;
+      line-height: 1.6;
+    }
+
+    .workspace {
+      display: none;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .workspace.show {
+      display: grid;
+    }
+
+    .canvas-shell {
+      overflow: auto;
+      padding: 12px;
+      border: 1px solid #d8dee7;
+      border-radius: 10px;
+      background:
+        linear-gradient(45deg, #eceff3 25%, transparent 25%),
+        linear-gradient(-45deg, #eceff3 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #eceff3 75%),
+        linear-gradient(-45deg, transparent 75%, #eceff3 75%);
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+      background-size: 20px 20px;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      width: fit-content;
+      max-width: 100%;
+      margin: 0 auto;
+      line-height: 0;
+      user-select: none;
+    }
+
+    #previewImage {
+      display: block;
+      width: auto;
+      max-width: 100%;
+      height: auto;
+      pointer-events: none;
+    }
+
+    #drawingCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .sidebar {
+      min-width: 0;
+    }
+
+    .sidebar-title {
+      margin-bottom: 12px;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .hotspot-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .hotspot-empty {
+      padding: 18px;
+      border: 1px dashed #cbd2dc;
+      border-radius: 9px;
+      color: #667085;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .hotspot-item {
+      padding: 14px;
+      border: 1px solid #d8dee7;
+      border-radius: 10px;
+      background: #fafbfc;
+    }
+
+    .hotspot-item.active {
+      border-color: #111827;
+      box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.08);
+    }
+
+    .hotspot-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .hotspot-name {
+      font-weight: 700;
+    }
+
+    .hotspot-delete {
+      min-height: auto;
+      padding: 7px 10px;
+      border-radius: 7px;
+      background: #fee4e2;
+      color: #b42318;
+      font-size: 12px;
+    }
+
+    .field {
+      margin-top: 10px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 5px;
+      color: #475467;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .coords {
+      margin-top: 9px;
+      color: #667085;
+      font-size: 12px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .output-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .note {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #fff8e6;
+      color: #704d00;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 850px) {
+      .workspace.show {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <header class="header">
+      <h1>Image-to-Email HTML Generator</h1>
+      <p>Upload one image, add multiple clickable areas, and generate complete email HTML.</p>
+    </header>
+
+    <section class="card">
+      <h2>1. Upload Your Image</h2>
+
+      <div class="upload-row">
+        <label class="file-button" for="imageInput">Choose Image</label>
+        <input id="imageInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp">
+
+        <span id="uploadStatus" class="status">No image selected.</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2. Add Clickable Areas</h2>
+
+      <p class="instructions">
+        Click and drag over each button or section that should be clickable.
+        After drawing an area, enter its destination URL.
+      </p>
+
+      <div id="workspace" class="workspace">
+        <div class="canvas-shell">
+          <div id="canvasWrap" class="canvas-wrap">
+            <img id="previewImage" alt="Uploaded email creative">
+            <canvas id="drawingCanvas"></canvas>
+          </div>
+        </div>
+
+        <aside class="sidebar">
+          <div class="sidebar-title">Clickable Areas</div>
+          <div id="hotspotList" class="hotspot-list"></div>
+
+          <div class="actions">
+            <button id="undoButton" class="secondary" type="button">Undo Last</button>
+            <button id="clearButton" class="danger" type="button">Clear All</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3. Generate Complete Email HTML</h2>
+
+      <div class="field">
+        <label for="emailTitle">Email title</label>
+        <input id="emailTitle" type="text" value="AutoGrowl Email">
+      </div>
+
+      <div class="field">
+        <label for="imageAlt">Image alt text</label>
+        <input id="imageAlt" type="text" value="Email creative">
+      </div>
+
+      <div class="field">
+        <label for="emailWidth">Email image width in pixels</label>
+        <input id="emailWidth" type="text" value="600">
+      </div>
+
+      <div class="output-actions">
+        <button id="generateButton" type="button">Generate HTML</button>
+        <button id="copyButton" class="secondary" type="button">Copy HTML</button>
+        <button id="downloadButton" class="secondary" type="button">Download HTML</button>
+      </div>
+
+      <textarea id="htmlOutput" placeholder="Your complete Mailchimp HTML will appear here."></textarea>
+
+      <div class="note">
+        Important: image-map click areas are not supported consistently by every email app.
+        Always send a Mailchimp test email before sending the campaign.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const WORKER_URL = "https://image-upload-api.kamal-e7c.workers.dev";
+
+    const imageInput = document.getElementById("imageInput");
+    const uploadStatus = document.getElementById("uploadStatus");
+    const workspace = document.getElementById("workspace");
+    const previewImage = document.getElementById("previewImage");
+    const canvasWrap = document.getElementById("canvasWrap");
+    const canvas = document.getElementById("drawingCanvas");
+    const context = canvas.getContext("2d");
+    const hotspotList = document.getElementById("hotspotList");
+    const undoButton = document.getElementById("undoButton");
+    const clearButton = document.getElementById("clearButton");
+    const generateButton = document.getElementById("generateButton");
+    const copyButton = document.getElementById("copyButton");
+    const downloadButton = document.getElementById("downloadButton");
+    const htmlOutput = document.getElementById("htmlOutput");
+    const emailTitle = document.getElementById("emailTitle");
+    const imageAlt = document.getElementById("imageAlt");
+    const emailWidth = document.getElementById("emailWidth");
+
+    let imageUrl = "";
+    let naturalWidth = 0;
+    let naturalHeight = 0;
+    let hotspots = [];
+    let activeHotspotIndex = -1;
+    let drawing = false;
+    let startPoint = null;
+    let currentPoint = null;
+
+    imageInput.addEventListener("change", async () => {
+      const file = imageInput.files[0];
+
+      if (!file) {
+        return;
+      }
+
+      setStatus("Uploading image...", "");
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch(`${WORKER_URL}/upload`, {
+          method: "POST",
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || "Image upload failed.");
+        }
+
+        imageUrl = result.imageUrl;
+        hotspots = [];
+        activeHotspotIndex = -1;
+
+        previewImage.onload = () => {
+          naturalWidth = previewImage.naturalWidth;
+          naturalHeight = previewImage.naturalHeight;
+
+          workspace.classList.add("show");
+
+          requestAnimationFrame(() => {
+            resizeCanvas();
+            renderHotspotList();
+            drawCanvas();
+          });
+        };
+
+        previewImage.src = imageUrl;
+
+        setStatus("Image uploaded successfully.", "success");
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || "Image upload failed.", "error");
+      }
+    });
+
+    previewImage.addEventListener("load", resizeCanvas);
+    window.addEventListener("resize", resizeCanvas);
+
+    canvas.addEventListener("pointerdown", event => {
+      if (!imageUrl) {
+        return;
+      }
+
+      const point = getCanvasPoint(event);
+      drawing = true;
+      startPoint = point;
+      currentPoint = point;
+      canvas.setPointerCapture(event.pointerId);
+      drawCanvas();
+    });
+
+    canvas.addEventListener("pointermove", event => {
+      if (!drawing) {
+        return;
+      }
+
+      currentPoint = getCanvasPoint(event);
+      drawCanvas();
+    });
+
+    canvas.addEventListener("pointerup", event => {
+      if (!drawing) {
+        return;
+      }
+
+      drawing = false;
+      currentPoint = getCanvasPoint(event);
+
+      const rectangle = normalizeRectangle(startPoint, currentPoint);
+
+      if (rectangle.width >= 8 && rectangle.height >= 8) {
+        const naturalRectangle = displayToNatural(rectangle);
+
+        hotspots.push({
+          x1: Math.round(naturalRectangle.x),
+          y1: Math.round(naturalRectangle.y),
+          x2: Math.round(naturalRectangle.x + naturalRectangle.width),
+          y2: Math.round(naturalRectangle.y + naturalRectangle.height),
+          url: "",
+          title: `Clickable area ${hotspots.length + 1}`
+        });
+
+        activeHotspotIndex = hotspots.length - 1;
+      }
+
+      startPoint = null;
+      currentPoint = null;
+
+      renderHotspotList();
+      drawCanvas();
+    });
+
+    canvas.addEventListener("pointercancel", () => {
+      drawing = false;
+      startPoint = null;
+      currentPoint = null;
+      drawCanvas();
+    });
+
+    undoButton.addEventListener("click", () => {
+      if (!hotspots.length) {
+        return;
+      }
+
+      hotspots.pop();
+      activeHotspotIndex = hotspots.length - 1;
+      renderHotspotList();
+      drawCanvas();
+    });
+
+    clearButton.addEventListener("click", () => {
+      hotspots = [];
+      activeHotspotIndex = -1;
+      renderHotspotList();
+      drawCanvas();
+    });
+
+    generateButton.addEventListener("click", generateEmailHtml);
+
+    copyButton.addEventListener("click", async () => {
+      if (!htmlOutput.value.trim()) {
+        generateEmailHtml();
+      }
+
+      try {
+        await navigator.clipboard.writeText(htmlOutput.value);
+        copyButton.textContent = "Copied!";
+
+        setTimeout(() => {
+          copyButton.textContent = "Copy HTML";
+        }, 1600);
+      } catch {
+        htmlOutput.select();
+        document.execCommand("copy");
+      }
+    });
+
+    downloadButton.addEventListener("click", () => {
+      if (!htmlOutput.value.trim()) {
+        generateEmailHtml();
+      }
+
+      const blob = new Blob([htmlOutput.value], {
+        type: "text/html;charset=utf-8"
+      });
+
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = downloadUrl;
+      link.download = "autogrowl-email.html";
+      link.click();
+
+      URL.revokeObjectURL(downloadUrl);
+    });
+
+    function setStatus(message, type) {
+      uploadStatus.textContent = message;
+      uploadStatus.className = `status ${type}`.trim();
+    }
+
+    function resizeCanvas() {
+      if (!previewImage.complete || !previewImage.naturalWidth) {
+        return;
+      }
+
+      const displayedWidth = previewImage.clientWidth;
+      const displayedHeight = previewImage.clientHeight;
+
+      canvas.width = Math.round(displayedWidth * window.devicePixelRatio);
+      canvas.height = Math.round(displayedHeight * window.devicePixelRatio);
+      canvas.style.width = `${displayedWidth}px`;
+      canvas.style.height = `${displayedHeight}px`;
+
+      context.setTransform(
+        window.devicePixelRatio,
+        0,
+        0,
+        window.devicePixelRatio,
+        0,
+        0
+      );
+
+      drawCanvas();
+    }
+
+    function getCanvasPoint(event) {
+      const rectangle = canvas.getBoundingClientRect();
+
+      return {
+        x: Math.max(0, Math.min(event.clientX - rectangle.left, rectangle.width)),
+        y: Math.max(0, Math.min(event.clientY - rectangle.top, rectangle.height))
+      };
+    }
+
+    function normalizeRectangle(point1, point2) {
+      const x = Math.min(point1.x, point2.x);
+      const y = Math.min(point1.y, point2.y);
+
+      return {
+        x,
+        y,
+        width: Math.abs(point2.x - point1.x),
+        height: Math.abs(point2.y - point1.y)
+      };
+    }
+
+    function displayToNatural(rectangle) {
+      const scaleX = naturalWidth / previewImage.clientWidth;
+      const scaleY = naturalHeight / previewImage.clientHeight;
+
+      return {
+        x: rectangle.x * scaleX,
+        y: rectangle.y * scaleY,
+        width: rectangle.width * scaleX,
+        height: rectangle.height * scaleY
+      };
+    }
+
+    function naturalToDisplay(hotspot) {
+      const scaleX = previewImage.clientWidth / naturalWidth;
+      const scaleY = previewImage.clientHeight / naturalHeight;
+
+      return {
+        x: hotspot.x1 * scaleX,
+        y: hotspot.y1 * scaleY,
+        width: (hotspot.x2 - hotspot.x1) * scaleX,
+        height: (hotspot.y2 - hotspot.y1) * scaleY
+      };
+    }
+
+    function drawCanvas() {
+      const width = previewImage.clientWidth || 0;
+      const height = previewImage.clientHeight || 0;
+
+      context.clearRect(0, 0, width, height);
+
+      hotspots.forEach((hotspot, index) => {
+        const rectangle = naturalToDisplay(hotspot);
+
+        context.fillStyle =
+          index === activeHotspotIndex
+            ? "rgba(17, 24, 39, 0.28)"
+            : "rgba(37, 99, 235, 0.22)";
+
+        context.strokeStyle =
+          index === activeHotspotIndex
+            ? "#111827"
+            : "#2563eb";
+
+        context.lineWidth = 2;
+        context.fillRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+        context.strokeRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+
+        context.fillStyle = "#ffffff";
+        context.font = "bold 13px Arial";
+        context.fillText(
+          String(index + 1),
+          rectangle.x + 7,
+          rectangle.y + 17
+        );
+      });
+
+      if (drawing && startPoint && currentPoint) {
+        const rectangle = normalizeRectangle(startPoint, currentPoint);
+
+        context.fillStyle = "rgba(22, 163, 74, 0.22)";
+        context.strokeStyle = "#16a34a";
+        context.lineWidth = 2;
+        context.setLineDash([7, 5]);
+        context.fillRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+        context.strokeRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+        context.setLineDash([]);
+      }
+    }
+
+    function renderHotspotList() {
+      hotspotList.innerHTML = "";
+
+      if (!hotspots.length) {
+        hotspotList.innerHTML = `
+          <div class="hotspot-empty">
+            Draw a rectangle over a button or section in the image.
+          </div>
+        `;
+        return;
+      }
+
+      hotspots.forEach((hotspot, index) => {
+        const item = document.createElement("div");
+        item.className = `hotspot-item ${
+          index === activeHotspotIndex ? "active" : ""
+        }`;
+
+        item.innerHTML = `
+          <div class="hotspot-head">
+            <span class="hotspot-name">Area ${index + 1}</span>
+            <button class="hotspot-delete" type="button">Delete</button>
+          </div>
+
+          <div class="field">
+            <label>Destination URL</label>
+            <input
+              class="url-input"
+              type="url"
+              placeholder="https://example.com/page"
+              value="${escapeAttribute(hotspot.url)}"
+            >
+          </div>
+
+          <div class="field">
+            <label>Area title</label>
+            <input
+              class="title-input"
+              type="text"
+              value="${escapeAttribute(hotspot.title)}"
+            >
+          </div>
+
+          <div class="coords">
+            Coordinates: ${hotspot.x1}, ${hotspot.y1}, ${hotspot.x2}, ${hotspot.y2}
+          </div>
+        `;
+
+        item.addEventListener("click", () => {
+          activeHotspotIndex = index;
+          renderHotspotList();
+          drawCanvas();
+        });
+
+        item.querySelector(".url-input").addEventListener("input", event => {
+          hotspots[index].url = event.target.value.trim();
+        });
+
+        item.querySelector(".title-input").addEventListener("input", event => {
+          hotspots[index].title = event.target.value;
+        });
+
+        item.querySelector(".hotspot-delete").addEventListener("click", event => {
+          event.stopPropagation();
+          hotspots.splice(index, 1);
+          activeHotspotIndex = Math.min(index, hotspots.length - 1);
+          renderHotspotList();
+          drawCanvas();
+        });
+
+        hotspotList.appendChild(item);
+      });
+    }
+
+    function generateEmailHtml() {
+      if (!imageUrl) {
+        alert("Please upload an image first.");
+        return;
+      }
+
+      if (!hotspots.length) {
+        alert("Please draw at least one clickable area.");
+        return;
+      }
+
+      const missingUrl = hotspots.find(hotspot => !hotspot.url);
+
+      if (missingUrl) {
+        alert("Please add a destination URL to every clickable area.");
+        return;
+      }
+
+      const requestedWidth = Math.max(
+        200,
+        Math.min(parseInt(emailWidth.value, 10) || 600, naturalWidth)
+      );
+
+      const outputHeight = Math.round(
+        naturalHeight * (requestedWidth / naturalWidth)
+      );
+
+      const scaleX = requestedWidth / naturalWidth;
+      const scaleY = outputHeight / naturalHeight;
+      const mapName = `email-map-${Date.now()}`;
+
+      const areas = hotspots.map(hotspot => {
+        const coordinates = [
+          Math.round(hotspot.x1 * scaleX),
+          Math.round(hotspot.y1 * scaleY),
+          Math.round(hotspot.x2 * scaleX),
+          Math.round(hotspot.y2 * scaleY)
+        ].join(",");
+
+        return `        <area shape="rect" coords="${coordinates}" href="${escapeAttribute(
+          hotspot.url
+        )}" alt="${escapeAttribute(
+          hotspot.title
+        )}" title="${escapeAttribute(
+          hotspot.title
+        )}" target="_blank">`;
+      }).join("\n");
+
+      const completeHtml = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(emailTitle.value || "Email")}</title>
+</head>
+
+<body style="margin:0;padding:0;background-color:#f4f4f4;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+    ${escapeHtml(imageAlt.value || "Email creative")}
+  </div>
+
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background-color:#f4f4f4;">
+    <tr>
+      <td align="center" style="padding:0;">
+        <table role="presentation" width="${requestedWidth}" cellspacing="0" cellpadding="0" border="0" style="width:${requestedWidth}px;margin:0 auto;background-color:#ffffff;">
+          <tr>
+            <td align="center" style="padding:0;margin:0;font-size:0;line-height:0;">
+              <img
+                src="${escapeAttribute(imageUrl)}"
+                width="${requestedWidth}"
+                height="${outputHeight}"
+                alt="${escapeAttribute(imageAlt.value || "Email creative")}"
+                usemap="#${mapName}"
+                border="0"
+                style="display:block;width:${requestedWidth}px;height:${outputHeight}px;border:0;margin:0;padding:0;"
+              >
+
+              <map name="${mapName}" id="${mapName}">
+${areas}
+              </map>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+      htmlOutput.value = completeHtml;
+      htmlOutput.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+    }
+
+    function escapeAttribute(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function escapeHtml(value) {
+      return escapeAttribute(value);
+    }
+
+    renderHotspotList();
+  </script>
+</body>
+</html>
